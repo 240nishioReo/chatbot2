@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dify Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- 外部ライブラリ -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.0.18/lib/marked.umd.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Dify Chat Interface</h1>
+            <div class="controls">
+                <div class="dify-app-selector">
+                    <label for="dify-app-select">Difyアプリ:</label>
+                    <select id="dify-app-select">
+                        {% for app in dify_apps %}
+                        <option value="{{ app.id }}">{{ app.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button id="new-chat-btn" class="btn btn-primary">新規チャット</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="chat-section">
+                <div id="chat-container" class="chat-container">
+                    <div class="welcome-message">
+                        <h2>チャットを開始してください</h2>
+                        <p>上部のプルダウンからDifyアプリを選択し、メッセージを入力してください。</p>
+                    </div>
+                </div>
+                
+                <div class="input-section">
+                    <div class="input-container">
+                        <textarea 
+                            id="message-input" 
+                            placeholder="メッセージを入力してください..." 
+                            rows="3"
+                        ></textarea>
+                        <button id="send-btn" class="btn btn-send">送信</button>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="history-section">
+                <h3>会話履歴</h3>
+                <div class="history-controls">
+                    <input 
+                        type="text" 
+                        id="history-search" 
+                        placeholder="履歴を検索..."
+                        class="search-input"
+                    >
+                </div>
+                <div id="history-list" class="history-list">
+                    <!-- 履歴アイテムがここに動的に挿入される -->
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- 状態管理用の隠しフィールド -->
+    <input type="hidden" id="current-conversation-id" value="">
+    <input type="hidden" id="current-dify-app-id" value="{{ dify_apps[0].id if dify_apps }}">
+
+    <!-- JavaScript読み込み -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/history.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>レスポンス解析 - Dify Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .analysis-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .analysis-header {
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .analysis-section {
+            margin-bottom: 2rem;
+        }
+        
+        .analysis-section h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .json-display {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .keyphrase-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .keyphrase-item {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            border: 1px solid #bbdefb;
+        }
+        
+        .document-section {
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #fafafa;
+        }
+        
+        .document-header {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .document-content {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+            flex: 1;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .back-button {
+            background: #6c757d;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        
+        .back-button:hover {
+            background: #5a6268;
+        }
+    </style>
+    <!-- 外部ライブラリ -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="analysis-container">
+        <a href="/" class="back-button">← チャット画面に戻る</a>
+        
+        <div class="analysis-header">
+            <h1>レスポンス解析</h1>
+            <p>Message ID: {{ message.id }} | 作成日時: {{ message.created_at.strftime('%Y年%m月%d日 %H:%M:%S') }}</p>
+        </div>
+        
+        <div class="analysis-section">
+            <h3>📝 アシスタント回答</h3>
+            <div class="document-content">
+                {{ message.content }}
+            </div>
+        </div>
+        
+        <div id="analysis-content" data-message-id="{{ message.id }}">
+            <!-- 解析データがJavaScriptで動的に挿入される -->
+            <div class="loading" style="text-align: center; padding: 2rem;">
+                <span class="loading-dots">解析データを読み込み中</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            loadAnalysisData();
+        });
+        
+        function loadAnalysisData() {
+            const messageId = $('#analysis-content').data('message-id');
+            
+            fetch(`/api/messages/${messageId}/analysis`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displayAnalysisData(data);
+                })
+                .catch(error => {
+                    console.error('解析データ読み込みエラー:', error);
+                    $('#analysis-content').html(`
+                        <div style="text-align: center; color: #d32f2f; padding: 2rem;">
+                            解析データの読み込みに失敗しました: ${error.message}
+                        </div>
+                    `);
+                });
+        }
+        
+        function displayAnalysisData(data) {
+            let html = '';
+            
+            // キーフレーズ統計
+            if (data.keyphrases && data.keyphrases.source_documents) {
+                html += `
+                    <div class="analysis-section">
+                        <h3>📊 統計情報</h3>
+                        <div class="stats">
+                            <div class="stat-item">
+                                <div class="stat-number">${data.keyphrases.source_documents.length}</div>
+                                <div class="stat-label">ソース文書数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">${data.keyphrases.total_keyphrase_count || 0}</div>
+                                <div class="stat-label">総キーフレーズ数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">${data.keyphrases.unique_keyphrase_count || 0}</div>
+                                <div class="stat-label">ユニークキーフレーズ数</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // ソース文書とキーフレーズ
+                html += `
+                    <div class="analysis-section">
+                        <h3>📄 ソース文書とキーフレーズ</h3>
+                `;
+                
+                data.keyphrases.source_documents.forEach((doc, index) => {
+                    const docKeyphrases = data.keyphrases.document_keyphrases.find(dk => dk.document_index === doc.index);
+                    
+                    html += `
+                        <div class="document-section">
+                            <div class="document-header">
+                                文書 ${doc.index} (${doc.content_length} 文字)
+                            </div>
+                            <div class="document-content">
+                                ${escapeHtml(doc.content)}
+                            </div>
+                    `;
+                    
+                    if (docKeyphrases && docKeyphrases.keyphrases.length > 0) {
+                        html += `
+                            <div>
+                                <strong>抽出されたキーフレーズ (${docKeyphrases.keyphrase_count}個):</strong>
+                                <div class="keyphrase-list">
+                        `;
+                        
+                        docKeyphrases.keyphrases.forEach(phrase => {
+                            html += `<span class="keyphrase-item">${escapeHtml(phrase)}</span>`;
+                        });
+                        
+                        html += `
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    html += `</div>`;
+                });
+                
+                html += `</div>`;
+                
+                // 全キーフレーズ一覧
+                if (data.keyphrases.unique_keyphrases && data.keyphrases.unique_keyphrases.length > 0) {
+                    html += `
+                        <div class="analysis-section">
+                            <h3>🔍 全キーフレーズ一覧</h3>
+                            <div class="keyphrase-list">
+                    `;
+                    
+                    data.keyphrases.unique_keyphrases.forEach(phrase => {
+                        html += `<span class="keyphrase-item">${escapeHtml(phrase)}</span>`;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            // RAW JSONデータ
+            html += `
+                <div class="analysis-section">
+                    <h3>🔧 RAW JSONデータ</h3>
+                    <div class="json-display">${escapeHtml(JSON.stringify(data.raw_response, null, 2))}</div>
+                </div>
+            `;
+            
+            $('#analysis-content').html(html);
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
